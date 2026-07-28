@@ -1,0 +1,17 @@
+{
+  "name": "Tunas Mekar Indonesia",
+  "short_name": "TMI Points",
+  "description": "Sistem Poin Siswa Digital",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#004632",
+  "theme_color": "#004632",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2909/2909875.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

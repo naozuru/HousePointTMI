@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Laporan - Tunas Mekar Indonesia</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-left">
+        <button
+          class="btn-back"
+          onclick="window.location.href='dashboard.html'"
+          style="margin: 0; padding: 8px 10px"
+        >
+          <iconify-icon icon="mdi:arrow-left"></iconify-icon>
+        </button>
+        <div>
+          <h2>Laporan & Ranking</h2>
+          <small>House Points TMI</small>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-container">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('ranking')">
+          <iconify-icon icon="mdi:trophy-outline"></iconify-icon> Peringkat
+        </button>
+        <button class="tab-btn" onclick="switchTab('history')">
+          <iconify-icon icon="mdi:chart-bar"></iconify-icon> Riwayat
+        </button>
+      </div>
+
+      <!-- TAB 1: RANKING -->
+      <div id="rankingTab" class="tab-content">
+        <div class="card">
+          <h3>
+            <iconify-icon icon="mdi:filter-variant"></iconify-icon> Filter Data
+          </h3>
+          <div class="filter-row">
+            <select id="levelFilter" onchange="fetchLeaderboard()">
+              <option value="all">Semua Level</option>
+              <option value="JHS">JHS (7-9)</option>
+              <option value="SHS">SHS (10-12)</option>
+            </select>
+            <select id="gradeFilter" onchange="fetchLeaderboard()">
+              <option value="all">Semua Kelas</option>
+              <option value="7">Kelas 7</option>
+              <option value="8">Kelas 8</option>
+              <option value="9">Kelas 9</option>
+              <option value="10">Kelas 10</option>
+              <option value="11">Kelas 11</option>
+              <option value="12">Kelas 12</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="highlight-container">
+          <div class="highlight-card highest" id="highestCard">
+            <p class="highlight-title">
+              <iconify-icon icon="mdi:arrow-up-bold"></iconify-icon> Tertinggi
+            </p>
+            <div class="highlight-avatar" id="highestAvatar"></div>
+            <h4 id="highestName">-</h4>
+            <p id="highestClass">-</p>
+            <div class="highlight-points" id="highestPoints">0</div>
+          </div>
+          <div class="highlight-card lowest" id="lowestCard">
+            <p class="highlight-title">
+              <iconify-icon icon="mdi:arrow-down-bold"></iconify-icon> Terendah
+            </p>
+            <div class="highlight-avatar" id="lowestAvatar"></div>
+            <h4 id="lowestName">-</h4>
+            <p id="lowestClass">-</p>
+            <div class="highlight-points" id="lowestPoints">0</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>
+            <iconify-icon icon="mdi:format-list-numbered"></iconify-icon>
+            Peringkat Keseluruhan
+          </h3>
+          <div id="allStudentsList" class="list-container">
+            <p class="loading-text">Memuat data...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: HISTORY & CHART -->
+      <div id="historyTab" class="tab-content hidden">
+        <div class="card">
+          <h3>
+            <iconify-icon icon="mdi:chart-line"></iconify-icon> Grafik Aktivitas
+          </h3>
+          <div class="filter-row">
+            <select id="monthFilter" onchange="fetchHistory()">
+              <option value="Januari">Januari</option>
+              <option value="Februari">Februari</option>
+              <option value="Maret">Maret</option>
+              <option value="April">April</option>
+              <option value="Mei">Mei</option>
+              <option value="Juni">Juni</option>
+              <option value="Juli">Juli</option>
+              <option value="Agustus">Agustus</option>
+              <option value="September">September</option>
+              <option value="Oktober">Oktober</option>
+              <option value="November">November</option>
+              <option value="Desember">Desember</option>
+            </select>
+            <select id="viewTypeFilter" onchange="fetchHistory()">
+              <option value="monthly">Bulanan</option>
+              <option value="weekly">Mingguan</option>
+              <option value="daily">Harian</option>
+            </select>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="pointsChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>
+            <iconify-icon icon="mdi:history"></iconify-icon> Riwayat Transaksi
+          </h3>
+          <div id="historyList" class="list-container">
+            <p class="loading-text">Memuat riwayat...</p>
+          </div>
+          <div class="action-buttons" style="margin-top: 20px">
+            <button class="btn btn-outline" onclick="exportData('excel')">
+              <iconify-icon icon="mdi:file-excel"></iconify-icon> Excel
+            </button>
+            <button class="btn btn-outline" onclick="exportData('pdf')">
+              <iconify-icon icon="mdi:file-pdf-box"></iconify-icon> PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script src="reports.js"></script>
+  </body>
+</html>

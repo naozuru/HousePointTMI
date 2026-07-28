@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Wali Murid - TMI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+</head>
+<body class="login-container">
+    <div class="login-card" id="loginCard">
+        <div class="logo-area">
+            <div class="logo-circle"><iconify-icon icon="mdi:account-child" width="36"></iconify-icon></div>
+            <h1>Portal Wali Murid</h1>
+            <p>Tunas Mekar Indonesia</p>
+        </div>
+        <div class="input-group">
+            <iconify-icon icon="mdi:card-account-details-outline" class="input-icon"></iconify-icon>
+            <input type="text" id="nisInput" placeholder="Masukkan NIS Siswa" required>
+        </div>
+        <button class="btn btn-primary" onclick="loginParent()">Lihat Poin</button>
+    </div>
+
+    <div class="dashboard-container hidden" id="parentDashboard">
+        <div class="card">
+            <button class="btn-back" onclick="logoutParent()"><iconify-icon icon="mdi:logout"></iconify-icon> Keluar</button>
+            <div class="student-detail-header" id="parentStudentHeader"></div>
+        </div>
+        <div class="card">
+            <h3><iconify-icon icon="mdi:history"></iconify-icon> Riwayat Poin</h3>
+            <div class="list-container" id="parentHistoryList"></div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="parent.js"></script>
+</body>
+</html>

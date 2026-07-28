@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Dashboard - Tunas Mekar Indonesia</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="config.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-circle small">
+          <iconify-icon icon="mdi:sprout" width="22"></iconify-icon>
+        </div>
+        <div>
+          <h2>Tunas Mekar Indonesia</h2>
+          <small id="teacherName">Memuat guru...</small>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="btn-nav" onclick="refreshDashboard()">
+          <iconify-icon icon="mdi:refresh"></iconify-icon> Refresh
+        </button>
+        <a href="reports.html" class="btn-nav">
+          <iconify-icon icon="mdi:trophy-variant"></iconify-icon> Laporan
+        </a>
+        <button class="btn-logout" onclick="logout()">
+          <iconify-icon icon="mdi:logout"></iconify-icon>
+        </button>
+      </div>
+    </header>
+
+    <main class="dashboard-container">
+      <div class="house-points-banner" id="housePointsBanner">
+        <div class="house-item">
+          <span class="house-name">JJT</span
+          ><span class="house-score" id="houseJJT">0</span>
+        </div>
+        <div class="house-item">
+          <span class="house-name">Jensud</span
+          ><span class="house-score" id="houseJensud">0</span>
+        </div>
+        <div class="house-item">
+          <span class="house-name">Munir</span
+          ><span class="house-score" id="houseMunir">0</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Pilih Siswa -->
+      <div class="card" id="studentSelectionCard">
+        <h3>
+          <iconify-icon icon="mdi:account-group-outline"></iconify-icon>
+          Pilih Siswa
+        </h3>
+
+        <div class="nfc-tap-area" id="studentNfcArea">
+          <iconify-icon icon="mdi:nfc-variant" width="28"></iconify-icon>
+          <span>Tap Kartu Siswa di sini</span>
+        </div>
+
+        <div class="search-filter">
+          <div class="input-icon-wrapper">
+            <iconify-icon
+              icon="mdi:magnify"
+              class="input-icon-left"
+            ></iconify-icon>
+            <input
+              type="text"
+              id="searchStudent"
+              placeholder="Cari nama atau NIS..."
+              oninput="renderStudents()"
+            />
+          </div>
+          <select id="classFilter" onchange="renderStudents()">
+            <option value="all">Semua Level</option>
+            <option value="JHS">JHS (7-9)</option>
+            <option value="SHS">SHS (10-12)</option>
+            <option value="7">Kelas 7</option>
+            <option value="8">Kelas 8</option>
+            <option value="9">Kelas 9</option>
+            <option value="10">Kelas 10</option>
+            <option value="11">Kelas 11</option>
+            <option value="12">Kelas 12</option>
+          </select>
+        </div>
+
+        <div class="list-container" id="studentList"></div>
+      </div>
+
+      <!-- Step 2: Pilih Pelanggaran/Poin -->
+      <div class="card hidden" id="actionCard">
+        <button class="btn-back" onclick="backToSelection()">
+          <iconify-icon icon="mdi:arrow-left"></iconify-icon> Kembali
+        </button>
+
+        <div class="student-detail-header" id="studentDetailHeader"></div>
+
+        <div class="action-buttons">
+          <button class="btn btn-plus" onclick="showViolations('plus')">
+            <iconify-icon icon="mdi:plus-thick"></iconify-icon> Tambah Poin
+          </button>
+          <button class="btn btn-minus" onclick="showViolations('minus')">
+            <iconify-icon icon="mdi:minus-thick"></iconify-icon> Kurangi Poin
+          </button>
+        </div>
+
+        <div class="hidden" id="violationsSection">
+          <div class="input-icon-wrapper" style="margin-bottom: 15px">
+            <iconify-icon
+              icon="mdi:magnify"
+              class="input-icon-left"
+            ></iconify-icon>
+            <input
+              type="text"
+              id="searchViolation"
+              class="input-with-left-icon"
+              placeholder="Cari pelanggaran..."
+              oninput="renderViolations()"
+            />
+          </div>
+          <div class="violation-list" id="violationList"></div>
+        </div>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="dashboard.js"></script>
+
+    <div id="modalOverlay" class="modal-overlay hidden">
+      <div class="modal-box">
+        <!-- TAMBAHKAN TOMBOL CLOSE INI -->
+        <button class="modal-close-btn" onclick="closeModal()">
+          <iconify-icon icon="mdi:close" width="22"></iconify-icon>
+        </button>
+
+        <h3 id="modalTitle">Konfirmasi</h3>
+        <div id="modalBody"></div>
+        <div id="modalFooter" class="modal-footer"></div>
+      </div>
+    </div>
+  </body>
+</html>

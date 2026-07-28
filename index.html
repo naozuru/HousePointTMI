@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Tunas Mekar Indonesia</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="config.js"></script>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-area">
+                <div class="logo-circle">
+                    <iconify-icon icon="mdi:sprout" width="36"></iconify-icon>
+                </div>
+                <h1>Tunas Mekar Indonesia</h1>
+                <p>Sistem Poin Siswa Digital</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <iconify-icon icon="mdi:account-outline" class="input-icon"></iconify-icon>
+                    <input type="text" id="username" placeholder="Username Guru" required>
+                </div>
+                <div class="input-group">
+                    <iconify-icon icon="mdi:lock-outline" class="input-icon"></iconify-icon>
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <iconify-icon icon="mdi:login"></iconify-icon> Masuk
+                </button>
+            </form>
+
+            <div class="divider">ATAU</div>
+
+            <button id="nfcLoginBtn" class="btn btn-outline">
+                <iconify-icon icon="mdi:nfc-variant"></iconify-icon> Tap Kartu Guru
+            </button>
+            <p id="nfcStatus" class="nfc-status"></p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'login', username, password })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                localStorage.setItem('teacher', JSON.stringify(data.teacher));
+                window.location.href = 'dashboard.html';
+            } else {
+                alert(data.message);
+            }
+        });
+
+        const nfcBtn = document.getElementById('nfcLoginBtn');
+        const nfcStatus = document.getElementById('nfcStatus');
+
+        nfcBtn.addEventListener('click', async () => {
+            if (!('NDEFReader' in window)) {
+                alert('Browser tidak mendukung Web NFC. Gunakan Chrome di Android.');
+                return;
+            }
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                nfcStatus.textContent = "Dekatkan kartu guru ke ponsel...";
+                
+                ndef.addEventListener("reading", async ({ serialNumber }) => {
+                    const nfc_id = serialNumber.replace(/:/g, '').toUpperCase();
+                    nfcStatus.textContent = `Kartu terbaca: ${nfc_id}. Memverifikasi...`;
+                    
+                    const res = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'login', nfc_id })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.status === 'success') {
+                        localStorage.setItem('teacher', JSON.stringify(data.teacher));
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        nfcStatus.textContent = "Kartu tidak terdaftar sebagai guru.";
+                    }
+                });
+            } catch (error) {
+                nfcStatus.textContent = "Gagal mengaktifkan NFC: " + error;
+            }
+        });
+    </script>
+</body>
+</html>
