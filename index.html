@@ -13,22 +13,22 @@
         <div class="login-card">
             <div class="logo-area">
                 <div class="logo-circle">
-                    <iconify-icon icon="mdi:sprout" width="36"></iconify-icon>
+                    <iconify-icon icon="mdi:sprout" width="40"></iconify-icon>
                 </div>
                 <h1>Tunas Mekar Indonesia</h1>
                 <p>Sistem Poin Siswa Digital</p>
             </div>
 
-            <form id="loginForm">
+            <form id="loginForm" autocomplete="on">
                 <div class="input-group">
+                    <input type="text" id="username" placeholder="Username Guru" required autocomplete="username">
                     <iconify-icon icon="mdi:account-outline" class="input-icon"></iconify-icon>
-                    <input type="text" id="username" placeholder="Username Guru" required>
                 </div>
                 <div class="input-group">
+                    <input type="password" id="password" placeholder="Password" required autocomplete="current-password">
                     <iconify-icon icon="mdi:lock-outline" class="input-icon"></iconify-icon>
-                    <input type="password" id="password" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="loginBtn">
                     <iconify-icon icon="mdi:login"></iconify-icon> Masuk
                 </button>
             </form>
@@ -39,28 +39,62 @@
                 <iconify-icon icon="mdi:nfc-variant"></iconify-icon> Tap Kartu Guru
             </button>
             <p id="nfcStatus" class="nfc-status"></p>
+
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--gray-100);">
+                <a href="parent.html" style="color: var(--gray-500); font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
+                    <iconify-icon icon="mdi:account-child"></iconify-icon>
+                    Login sebagai Wali Murid
+                </a>
+            </div>
         </div>
     </div>
 
+    <div id="toast" class="toast"></div>
+
     <script src="app.js"></script>
     <script>
+        function showToast(msg, type = '') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast show ' + type;
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value;
+            const btn = document.getElementById('loginBtn');
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
-            
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'login', username, password })
-            });
-            const data = await res.json();
-            
-            if (data.status === 'success') {
-                localStorage.setItem('teacher', JSON.stringify(data.teacher));
-                window.location.href = 'dashboard.html';
-            } else {
-                alert(data.message);
+
+            if (!username || !password) {
+                showToast('Username dan password wajib diisi', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<iconify-icon icon="mdi:loading" style="animation: spin 1s linear infinite;"></iconify-icon> Memproses...';
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'login', username, password })
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    localStorage.setItem('teacher', JSON.stringify(data.teacher));
+                    showToast('Login berhasil!', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 400);
+                } else {
+                    showToast(data.message || 'Login gagal', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<iconify-icon icon="mdi:login"></iconify-icon> Masuk';
+                }
+            } catch (err) {
+                showToast('Gagal terhubung ke server', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<iconify-icon icon="mdi:login"></iconify-icon> Masuk';
             }
         });
 
@@ -69,28 +103,29 @@
 
         nfcBtn.addEventListener('click', async () => {
             if (!('NDEFReader' in window)) {
-                alert('Browser tidak mendukung Web NFC. Gunakan Chrome di Android.');
+                showToast('Browser tidak mendukung Web NFC. Gunakan Chrome di Android.', 'error');
                 return;
             }
             try {
                 const ndef = new NDEFReader();
                 await ndef.scan();
                 nfcStatus.textContent = "Dekatkan kartu guru ke ponsel...";
-                
+
                 ndef.addEventListener("reading", async ({ serialNumber }) => {
                     const nfc_id = serialNumber.replace(/:/g, '').toUpperCase();
                     nfcStatus.textContent = `Kartu terbaca: ${nfc_id}. Memverifikasi...`;
-                    
+
                     const res = await fetch(API_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify({ action: 'login', nfc_id })
                     });
                     const data = await res.json();
-                    
+
                     if (data.status === 'success') {
                         localStorage.setItem('teacher', JSON.stringify(data.teacher));
-                        window.location.href = 'dashboard.html';
+                        showToast('Login berhasil!', 'success');
+                        setTimeout(() => window.location.href = 'dashboard.html', 400);
                     } else {
                         nfcStatus.textContent = "Kartu tidak terdaftar sebagai guru.";
                     }
@@ -99,6 +134,11 @@
                 nfcStatus.textContent = "Gagal mengaktifkan NFC: " + error;
             }
         });
+
+        // Spinner animation
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
     </script>
 </body>
 </html>

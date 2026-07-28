@@ -20,7 +20,7 @@
         <button
           class="btn-back"
           onclick="window.location.href='dashboard.html'"
-          style="margin: 0; padding: 8px 10px"
+          style="margin: 0; padding: 8px 12px;"
         >
           <iconify-icon icon="mdi:arrow-left"></iconify-icon>
         </button>
@@ -28,6 +28,11 @@
           <h2>Laporan & Ranking</h2>
           <small>House Points TMI</small>
         </div>
+      </div>
+      <div class="header-right">
+        <button class="btn-logout" onclick="logout()" title="Logout">
+          <iconify-icon icon="mdi:logout"></iconify-icon>
+        </button>
       </div>
     </header>
 
@@ -137,7 +142,7 @@
           <div id="historyList" class="list-container">
             <p class="loading-text">Memuat riwayat...</p>
           </div>
-          <div class="action-buttons" style="margin-top: 20px">
+          <div class="action-buttons" style="margin-top: 18px;">
             <button class="btn btn-outline" onclick="exportData('excel')">
               <iconify-icon icon="mdi:file-excel"></iconify-icon> Excel
             </button>
@@ -148,6 +153,8 @@
         </div>
       </div>
     </main>
+
+    <div id="toast" class="toast"></div>
 
     <script src="config.js"></script>
     <script src="app.js"></script>

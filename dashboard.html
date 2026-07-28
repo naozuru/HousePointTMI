@@ -23,31 +23,36 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-nav" onclick="refreshDashboard()">
-          <iconify-icon icon="mdi:refresh"></iconify-icon> Refresh
+        <button class="btn-nav" onclick="refreshDashboard()" title="Refresh">
+          <iconify-icon icon="mdi:refresh"></iconify-icon>
         </button>
-        <a href="reports.html" class="btn-nav">
-          <iconify-icon icon="mdi:trophy-variant"></iconify-icon> Laporan
+        <a href="reports.html" class="btn-nav" title="Laporan">
+          <iconify-icon icon="mdi:trophy-variant"></iconify-icon>
+          <span style="display: none;" class="nav-text">Laporan</span>
         </a>
-        <button class="btn-logout" onclick="logout()">
+        <button class="btn-logout" onclick="logout()" title="Logout">
           <iconify-icon icon="mdi:logout"></iconify-icon>
         </button>
       </div>
     </header>
 
     <main class="dashboard-container">
+      <!-- House Points Banner -->
       <div class="house-points-banner" id="housePointsBanner">
         <div class="house-item">
-          <span class="house-name">JJT</span
-          ><span class="house-score" id="houseJJT">0</span>
+          <iconify-icon icon="mdi:shield-star" style="color: var(--primary); font-size: 18px;"></iconify-icon>
+          <span class="house-name">JJT</span>
+          <span class="house-score" id="houseJJT">0</span>
         </div>
         <div class="house-item">
-          <span class="house-name">Jensud</span
-          ><span class="house-score" id="houseJensud">0</span>
+          <iconify-icon icon="mdi:shield-star" style="color: var(--primary); font-size: 18px;"></iconify-icon>
+          <span class="house-name">Jensud</span>
+          <span class="house-score" id="houseJensud">0</span>
         </div>
         <div class="house-item">
-          <span class="house-name">Munir</span
-          ><span class="house-score" id="houseMunir">0</span>
+          <iconify-icon icon="mdi:shield-star" style="color: var(--primary); font-size: 18px;"></iconify-icon>
+          <span class="house-name">Munir</span>
+          <span class="house-score" id="houseMunir">0</span>
         </div>
       </div>
 
@@ -59,22 +64,23 @@
         </h3>
 
         <div class="nfc-tap-area" id="studentNfcArea">
-          <iconify-icon icon="mdi:nfc-variant" width="28"></iconify-icon>
+          <iconify-icon icon="mdi:nfc-variant" width="32"></iconify-icon>
           <span>Tap Kartu Siswa di sini</span>
+          <small style="font-weight: 500; opacity: 0.7;">Atau cari manual di bawah</small>
         </div>
 
         <div class="search-filter">
           <div class="input-icon-wrapper">
-            <iconify-icon
-              icon="mdi:magnify"
-              class="input-icon-left"
-            ></iconify-icon>
             <input
               type="text"
               id="searchStudent"
               placeholder="Cari nama atau NIS..."
               oninput="renderStudents()"
             />
+            <iconify-icon
+              icon="mdi:magnify"
+              class="input-icon-left"
+            ></iconify-icon>
           </div>
           <select id="classFilter" onchange="renderStudents()">
             <option value="all">Semua Level</option>
@@ -110,11 +116,7 @@
         </div>
 
         <div class="hidden" id="violationsSection">
-          <div class="input-icon-wrapper" style="margin-bottom: 15px">
-            <iconify-icon
-              icon="mdi:magnify"
-              class="input-icon-left"
-            ></iconify-icon>
+          <div class="input-icon-wrapper" style="margin-bottom: 14px">
             <input
               type="text"
               id="searchViolation"
@@ -122,18 +124,23 @@
               placeholder="Cari pelanggaran..."
               oninput="renderViolations()"
             />
+            <iconify-icon
+              icon="mdi:magnify"
+              class="input-icon-left"
+            ></iconify-icon>
           </div>
           <div class="violation-list" id="violationList"></div>
         </div>
       </div>
     </main>
 
+    <div id="toast" class="toast"></div>
+
     <script src="app.js"></script>
     <script src="dashboard.js"></script>
 
     <div id="modalOverlay" class="modal-overlay hidden">
       <div class="modal-box">
-        <!-- TAMBAHKAN TOMBOL CLOSE INI -->
         <button class="modal-close-btn" onclick="closeModal()">
           <iconify-icon icon="mdi:close" width="22"></iconify-icon>
         </button>
