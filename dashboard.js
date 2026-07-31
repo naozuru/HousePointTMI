@@ -1,514 +1,604 @@
-let currentTeacher = checkAuth();
-if (currentTeacher) {
-  document.getElementById(
-    "teacherName"
-  ).textContent = `Halo, ${currentTeacher.name}`;
-}
+/**
+ * Dashboard - Teacher main page
+ */
+(function () {
+  'use strict';
 
-let studentsData = [];
-let violationsData = [];
-let selectedStudent = null;
+  const T = window.TMI;
+  let currentTeacher = T.checkAuth();
+  if (!currentTeacher) return;
 
-window.onload = async () => {
-  await fetchStudents();
-  initStudentNFC();
-  fetchHousePoints();
-};
+  document.getElementById('teacherName').textContent = `Hello, ${currentTeacher.name}`;
 
-// === TOAST HELPER ===
-function showToast(msg, type = '') {
-  let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.className = 'toast';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
+  // State
+  let studentsData = [];
+  let violationsData = [];
+  let violationCategories = [];
+  let selectedStudent = null;
+  let currentViolationType = null;
+  let currentCategoryFilter = '';
+  let currentHouseFilter = '';
+  let lastTransaction = null;
+  let housePoints = null;
 
-// === HTML ESCAPE ===
-function escapeHtml(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+  // === INIT ===
+  window.addEventListener('DOMContentLoaded', async () => {
+    await Promise.all([
+      fetchStudents(),
+      fetchViolations(),
+      fetchHousePoints(),
+      fetchDashboardStats()
+    ]);
+    initStudentNFC();
+    bindEvents();
+  });
 
-// Helper: Ambil inisial dari nama
-function getInitials(name) {
-  const parts = name.split(" ");
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-}
+  function bindEvents() {
+    // Debounced search
+    const searchInput = document.getElementById('searchStudent');
+    searchInput.addEventListener('input', T.debounce(renderStudents, 200));
 
-// Helper: Buat elemen Avatar (Foto atau Inisial)
-function createAvatarElement(student, sizeClass = "") {
-  const avatar = document.createElement("div");
-  avatar.className = `student-avatar avatar-fallback ${sizeClass}`;
-  avatar.textContent = getInitials(student.name);
+    const violationSearch = document.getElementById('searchViolation');
+    violationSearch.addEventListener('input', T.debounce(renderViolations, 200));
 
-  if (
-    student.photo_url &&
-    typeof student.photo_url === "string" &&
-    student.photo_url.startsWith("http")
-  ) {
-    const img = new Image();
-    img.className = `student-avatar-img ${sizeClass}`;
-    img.src = student.photo_url;
-    img.onload = () => {
-      avatar.innerHTML = "";
-      avatar.appendChild(img);
-      avatar.classList.remove("avatar-fallback");
-    };
-  }
+    document.getElementById('classFilter').addEventListener('change', renderStudents);
 
-  return avatar;
-}
+    document.getElementById('backBtn').addEventListener('click', backToSelection);
 
-async function fetchStudents() {
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "getStudents" }),
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+    // Quick house filters
+    document.querySelectorAll('#quickFilters .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#quickFilters .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentHouseFilter = chip.dataset.house;
+        renderStudents();
+      });
     });
-    const data = await res.json();
-    studentsData = data.students || [];
-    renderStudents();
-  } catch (err) {
-    showToast("Gagal memuat data siswa", "error");
-  }
-}
 
-function renderStudents() {
-  const searchVal = document
-    .getElementById("searchStudent")
-    .value.toLowerCase();
-  const classVal = document.getElementById("classFilter").value;
-  const list = document.getElementById("studentList");
-  list.innerHTML = "";
-
-  const filtered = studentsData.filter((s) => {
-    let classMatch = false;
-    const studentGrade = parseInt(s.class) || 0;
-
-    if (classVal === "all") classMatch = true;
-    else if (classVal === "JHS") classMatch = [7, 8, 9].includes(studentGrade);
-    else if (classVal === "SHS")
-      classMatch = [10, 11, 12].includes(studentGrade);
-    else classMatch = studentGrade === parseInt(classVal);
-
-    const nameMatch =
-      s.name.toLowerCase().includes(searchVal) ||
-      String(s.nis).includes(searchVal);
-    return nameMatch && classMatch;
-  });
-
-  if (filtered.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <iconify-icon icon="mdi:account-search-outline"></iconify-icon>
-        <div class="title">Siswa tidak ditemukan</div>
-        <div class="subtitle">Coba kata kunci lain atau ubah filter</div>
-      </div>
-    `;
-    return;
+    // First chip as default active
+    document.querySelector('#quickFilters .chip').classList.add('active');
   }
 
-  filtered.forEach((s) => {
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.onclick = () => selectStudent(s);
+  // === DATA FETCHING ===
 
-    const pointClass = s.points >= 0 ? "points-positive" : "points-negative";
-    const sign = s.points > 0 ? "+" : "";
-
-    const leftDiv = document.createElement("div");
-    leftDiv.className = "student-item-left";
-
-    leftDiv.innerHTML = `
-            <div class="student-info-text">
-                <div class="name">${escapeHtml(s.name)}</div>
-                <div class="meta">Kelas ${escapeHtml(s.class)} • NIS: ${escapeHtml(String(s.nis))}</div>
-            </div>
-        `;
-
-    leftDiv.insertBefore(createAvatarElement(s), leftDiv.firstChild);
-
-    const pointsDiv = document.createElement("div");
-    pointsDiv.className = `points-badge ${pointClass}`;
-    pointsDiv.textContent = `${sign}${s.points}`;
-
-    div.appendChild(leftDiv);
-    div.appendChild(pointsDiv);
-    list.appendChild(div);
-  });
-}
-
-function selectStudent(student) {
-  selectedStudent = student;
-  document.getElementById("studentSelectionCard").classList.add("hidden");
-  document.getElementById("actionCard").classList.remove("hidden");
-
-  const headerDiv = document.getElementById("studentDetailHeader");
-  headerDiv.innerHTML = "";
-
-  const pointClass =
-    student.points >= 0 ? "points-positive" : "points-negative";
-  const sign = student.points > 0 ? "+" : "";
-
-  const infoDiv = document.createElement("div");
-  infoDiv.innerHTML = `
-        <h3>${escapeHtml(student.name)}</h3>
-        <p>Kelas ${escapeHtml(student.class)} • NIS: ${escapeHtml(String(student.nis))}</p>
-        <div class="current-points points-badge ${pointClass}" style="margin-top:10px;">Poin Saat Ini: ${sign}${student.points}</div>
-    `;
-
-  headerDiv.appendChild(createAvatarElement(student, "large"));
-  headerDiv.appendChild(infoDiv);
-
-  document.getElementById("violationsSection").classList.add("hidden");
-  document.getElementById("searchViolation").value = "";
-}
-
-function backToSelection() {
-  document.getElementById("studentSelectionCard").classList.remove("hidden");
-  document.getElementById("actionCard").classList.add("hidden");
-  document.getElementById("violationsSection").classList.add("hidden");
-  document.getElementById("searchViolation").value = "";
-}
-
-function initStudentNFC() {
-  const nfcArea = document.getElementById("studentNfcArea");
-
-  if (!("NDEFReader" in window)) {
-    nfcArea.innerHTML = `
-      <iconify-icon icon="mdi:alert-circle-outline" width="32"></iconify-icon>
-      <span><small>NFC tidak didukung. Cari manual di bawah.</small></span>
-    `;
-    return;
-  }
-
-  nfcArea.onclick = async () => {
-    try {
-      const ndef = new NDEFReader();
-      await ndef.scan();
-      nfcArea.innerHTML = `
-        <iconify-icon icon="mdi:contactless-payment-circle" width="32"></iconify-icon>
-        <span>Dekatkan kartu siswa...</span>
-      `;
-
-      ndef.addEventListener("reading", ({ serialNumber }) => {
-        const nfc_id = serialNumber.replace(/:/g, "").toUpperCase();
-        const found = studentsData.find((s) => s.nfc_id === nfc_id);
-
-        if (found) {
-          showToast(`Siswa ditemukan: ${found.name}`, "success");
-          selectStudent(found);
-        } else {
-          nfcArea.innerHTML = `
-            <iconify-icon icon="mdi:card-off-outline" width="32"></iconify-icon>
-            <span>Kartu ${nfc_id} tidak terdaftar!</span>
-          `;
-
-          setTimeout(() => {
-            nfcArea.innerHTML = `
-              <iconify-icon icon="mdi:nfc-variant" width="32"></iconify-icon>
-              <span>Tap Kartu Siswa di sini</span>
-            `;
-          }, 2500);
-        }
-      });
-    } catch (e) {
-      showToast("Gagal scan: " + e, "error");
+  async function fetchStudents() {
+    const res = await T.api('getStudents');
+    if (res.status === 'success') {
+      studentsData = res.students || [];
+    } else {
+      T.showToast('Failed to load students', 'error');
     }
-  };
-}
+    renderStudents();
+  }
 
-async function showViolations(type) {
-  const section = document.getElementById("violationsSection");
-  section.classList.remove("hidden");
+  async function fetchViolations() {
+    const res = await T.api('getViolations');
+    if (res.status === 'success') {
+      violationsData = res.violations || [];
+      violationCategories = res.categories || [];
+      renderCategoryChips();
+    }
+  }
 
-  document.getElementById("violationList").innerHTML =
-    '<p class="loading-text">Memuat data...</p>';
+  async function fetchHousePoints() {
+    const res = await T.api('getHousePoints');
+    if (res.status === 'success') {
+      housePoints = res;
+      renderHousePoints();
+    }
+  }
 
-  if (violationsData.length === 0) {
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "getViolations" }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-      });
-      const data = await res.json();
+  async function fetchDashboardStats() {
+    const res = await T.api('getDashboardStats');
+    if (res.status === 'success') {
+      renderStats(res.stats);
+    } else {
+      renderStatsFallback();
+    }
+  }
 
-      if (data.status === "success") {
-        violationsData = data.violations || [];
-      } else {
-        showToast("Gagal memuat data pelanggaran", "error");
-        document.getElementById("violationList").innerHTML =
-          '<p class="loading-text">Gagal memuat data.</p>';
-        return;
-      }
-    } catch (err) {
-      showToast("Gagal terhubung ke server", "error");
+  function renderStatsFallback() {
+    const positiveToday = studentsData.filter(s => s.points > 0).length;
+    const total = studentsData.length;
+    const stats = [
+      { label: 'Total Students', value: total, icon: 'mdi:account-group', cls: '' },
+      { label: 'Positive Students', value: positiveToday, icon: 'mdi:trending-up', cls: 'success' },
+      { label: 'Total Points', value: studentsData.reduce((a, s) => a + (parseInt(s.points) || 0), 0), icon: 'mdi:star', cls: 'warning' },
+      { label: 'Avg per Student', value: total > 0 ? Math.round(studentsData.reduce((a, s) => a + (parseInt(s.points) || 0), 0) / total * 10) / 10 : 0, icon: 'mdi:chart-line', cls: 'info' }
+    ];
+    renderStats({ stats });
+  }
+
+  // === RENDERERS ===
+
+  function renderStats(data) {
+    const stats = data.stats || data;
+    const positiveToday = stats.positive_today ?? studentsData.filter(s => s.points > 0).length;
+    const total = stats.total_students ?? studentsData.length;
+    const totalPoints = studentsData.reduce((a, s) => a + (parseInt(s.points) || 0), 0);
+    const avg = total > 0 ? Math.round(totalPoints / total * 10) / 10 : 0;
+
+    const items = [
+      { label: 'Students', value: total, icon: 'mdi:account-group', cls: '' },
+      { label: 'Points +Today', value: '+' + (stats.positive_today || 0), icon: 'mdi:trending-up', cls: 'success' },
+      { label: 'Points -Today', value: '-' + (stats.negative_today || 0), icon: 'mdi:trending-down', cls: 'danger' },
+      { label: 'Tx Today', value: stats.transactions_today || 0, icon: 'mdi:receipt-text', cls: 'info' }
+    ];
+
+    const grid = document.getElementById('statsGrid');
+    grid.innerHTML = items.map((s, i) => `
+      <div class="stat-card ${s.cls}" style="animation-delay:${i * 60}ms">
+        <div class="stat-icon"><iconify-icon icon="${s.icon}"></iconify-icon></div>
+        <div class="stat-label">${T.escapeHtml(s.label)}</div>
+        <div class="stat-value">${T.formatNumber(s.value)}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderHousePoints() {
+    if (!housePoints) return;
+    document.getElementById('houseJJT').innerText = T.formatNumber(housePoints.houses.JJT || 0);
+    document.getElementById('houseJensud').innerText = T.formatNumber(housePoints.houses.Jensud || 0);
+    document.getElementById('houseMunir').innerText = T.formatNumber(housePoints.houses.Munir || 0);
+
+    // Highlight leader
+    const leader = housePoints.leader;
+    ['JJT', 'Jensud', 'Munir'].forEach(h => {
+      const card = document.getElementById(`houseCard-${h}`);
+      if (card) card.classList.toggle('leader', h === leader && housePoints.houses[h] > 0);
+    });
+  }
+
+  function renderStudents() {
+    const searchVal = document.getElementById('searchStudent').value.toLowerCase().trim();
+    const classVal = document.getElementById('classFilter').value;
+    const list = document.getElementById('studentList');
+
+    const filtered = studentsData.filter((s) => {
+      let classMatch = false;
+      const studentGrade = parseInt(s.class) || 0;
+
+      if (classVal === 'all') classMatch = true;
+      else if (classVal === 'JHS') classMatch = [7, 8, 9].includes(studentGrade);
+      else if (classVal === 'SHS') classMatch = [10, 11, 12].includes(studentGrade);
+      else classMatch = studentGrade === parseInt(classVal);
+
+      const houseMatch = !currentHouseFilter || s.house === currentHouseFilter;
+
+      const nameMatch = !searchVal ||
+        (s.name || '').toLowerCase().includes(searchVal) ||
+        String(s.nis).includes(searchVal);
+
+      return classMatch && houseMatch && nameMatch;
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = T.emptyState('mdi:account-search-outline', 'No students found', 'Try a different keyword or change the filter');
       return;
     }
+
+    list.innerHTML = filtered.map((s, idx) => {
+      const pointClass = s.points >= 0 ? 'points-positive' : 'points-negative';
+      const sign = s.points > 0 ? '+' : '';
+      const houseKey = s.house && T.HOUSES[s.house] ? s.house : '';
+      return `
+        <div class="list-item" data-nis="${T.escapeHtml(s.nis)}" style="animation-delay:${Math.min(idx * 20, 200)}ms">
+          <div class="student-item-left">
+            <div class="student-avatar house-${houseKey}" data-avatar="${T.escapeHtml(s.nis)}"></div>
+            <div class="student-info-text">
+              <div class="name">${T.escapeHtml(s.name)}</div>
+              <div class="meta">
+                <span>Grade ${T.escapeHtml(s.class)}</span>
+                ${s.house ? `<span>•</span><span style="color:${T.getHouseColor(s.house)}; font-weight:700;">${T.escapeHtml(s.house)}</span>` : ''}
+                <span>•</span>
+                <span>NIS: ${T.escapeHtml(String(s.nis))}</span>
+              </div>
+            </div>
+          </div>
+          <div class="points-badge ${pointClass}">${sign}${T.formatNumber(s.points)}</div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire avatars & click
+    list.querySelectorAll('.list-item').forEach((item, i) => {
+      const nis = item.dataset.nis;
+      const student = filtered[i];
+      const avatarContainer = item.querySelector('[data-avatar]');
+      if (avatarContainer && student) {
+        avatarContainer.appendChild(T.createAvatar(student));
+      }
+      item.addEventListener('click', () => selectStudent(student));
+    });
   }
 
-  window.currentType = type;
-  renderViolations();
-}
+  function renderCategoryChips() {
+    const container = document.getElementById('categoryChips');
+    const cats = ['All', ...violationCategories];
+    container.innerHTML = cats.map((c, i) =>
+      `<span class="chip ${i === 0 ? 'active' : ''}" data-cat="${T.escapeHtml(c)}">${T.escapeHtml(c)}</span>`
+    ).join('');
 
-function renderViolations() {
-  const searchVal = document
-    .getElementById("searchViolation")
-    .value.toLowerCase();
-  const list = document.getElementById("violationList");
-  list.innerHTML = "";
+    container.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCategoryFilter = chip.dataset.cat === 'All' ? '' : chip.dataset.cat;
+        renderViolations();
+      });
+    });
+  }
 
-  const filtered = violationsData.filter((v) => {
-    const vType = v.type ? v.type.trim().toLowerCase() : "";
-    const vName = v.name ? v.name.toLowerCase() : "";
+  // === STUDENT SELECTION ===
 
-    return vType === window.currentType && vName.includes(searchVal);
-  });
+  async function selectStudent(student) {
+    selectedStudent = student;
+    document.getElementById('studentSelectionCard').classList.add('hidden');
+    document.getElementById('actionCard').classList.remove('hidden');
 
-  if (filtered.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <iconify-icon icon="mdi:format-list-bulleted"></iconify-icon>
-        <div class="title">Tidak ada item</div>
-        <div class="subtitle">Coba kata kunci lain</div>
+    const headerDiv = document.getElementById('studentDetailHeader');
+    headerDiv.innerHTML = '';
+
+    const pointClass = student.points >= 0 ? 'points-positive' : 'points-negative';
+    const sign = student.points > 0 ? '+' : '';
+    const houseKey = student.house && T.HOUSES[student.house] ? student.house : '';
+    const houseColor = T.getHouseColor(student.house);
+
+    const infoDiv = document.createElement('div');
+    infoDiv.style.cssText = 'flex:1; min-width:0;';
+    infoDiv.innerHTML = `
+      <h3>${T.escapeHtml(student.name)}</h3>
+      <p>
+        Grade ${T.escapeHtml(student.class)}
+        ${student.house ? `• <span style="color:${houseColor}; font-weight:700;">${T.escapeHtml(student.house)}</span>` : ''}
+        • NIS: ${T.escapeHtml(String(student.nis))}
+      </p>
+      <div class="points-badge ${pointClass}" style="margin-top:10px; display:inline-block;">
+        Current Points: ${sign}${T.formatNumber(student.points)}
       </div>
     `;
-    return;
+
+    const avatar = T.createAvatar(student, 'large house-' + houseKey);
+    headerDiv.appendChild(avatar);
+    headerDiv.appendChild(infoDiv);
+    headerDiv.className = 'student-detail-header';
+
+    document.getElementById('violationsSection').classList.add('hidden');
+    document.getElementById('searchViolation').value = '';
+    document.getElementById('studentHistoryPreview').classList.add('hidden');
+
+    // Load student history
+    loadStudentHistory(student.nis);
   }
 
-  filtered.forEach((v) => {
-    const div = document.createElement("div");
-    div.className = "violation-item";
-    div.onclick = () => submitTransaction(v);
+  async function loadStudentHistory(nis) {
+    const res = await T.api('getStudentHistory', { nis, limit: 5 });
+    const container = document.getElementById('studentHistoryList');
+    const wrapper = document.getElementById('studentHistoryPreview');
 
-    const pointColor =
-      v.type === "plus" ? "points-positive" : "points-negative";
-    const sign = v.type === "plus" ? "+" : "-";
-    div.innerHTML = `
-            <div class="violation-name">${escapeHtml(v.name)}</div>
-            <div class="points-badge ${pointColor}">${sign}${v.point}</div>
-        `;
-    list.appendChild(div);
-  });
-}
-
-let lastTransaction = null;
-
-// --- MODAL LOGIC ---
-function showModal(title, bodyHtml, buttons) {
-  document.getElementById("modalTitle").innerText = title;
-  document.getElementById("modalBody").innerHTML = bodyHtml;
-  const footer = document.getElementById("modalFooter");
-  footer.innerHTML = "";
-  buttons.forEach((btn) => {
-    const b = document.createElement("button");
-    b.className = `btn ${btn.class || "btn-primary"}`;
-    b.innerHTML = btn.text;
-    b.onclick = () => {
-      if (btn.keepOpen) {
-        if (btn.onClick) btn.onClick();
-      } else {
-        closeModal();
-        if (btn.onClick) btn.onClick();
-      }
-    };
-    footer.appendChild(b);
-  });
-  document.getElementById("modalOverlay").classList.remove("hidden");
-}
-function closeModal() {
-  document.getElementById("modalOverlay").classList.add("hidden");
-}
-
-// --- HOUSE POINTS ---
-async function fetchHousePoints() {
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getHousePoints" }),
-    });
-    const data = await res.json();
-    if (data.status === "success") {
-      document.getElementById("houseJJT").innerText = data.houses.JJT ?? 0;
-      document.getElementById("houseJensud").innerText = data.houses.Jensud ?? 0;
-      document.getElementById("houseMunir").innerText = data.houses.Munir ?? 0;
+    if (res.status !== 'success' || res.history.length === 0) {
+      wrapper.classList.add('hidden');
+      return;
     }
-  } catch (e) {
-    console.error("Fetch house points error:", e);
+
+    wrapper.classList.remove('hidden');
+    container.innerHTML = res.history.map(t => {
+      const pClass = t.points >= 0 ? 'points-positive' : 'points-negative';
+      const sign = t.points > 0 ? '+' : '';
+      return `
+        <div class="history-item">
+          <div class="history-meta">
+            <span class="history-date">${T.formatRelative(t.date)} • ${T.formatDate(t.date)}</span>
+            <span class="history-note">${T.escapeHtml(t.note || t.violation_name || 'Transaction')}</span>
+          </div>
+          <div class="points-badge ${pClass}">${sign}${T.formatNumber(t.points)}</div>
+        </div>
+      `;
+    }).join('');
   }
-}
 
-async function refreshDashboard() {
-  const list = document.getElementById("studentList");
-  if (list) list.innerHTML = '<p class="loading-text">Memuat ulang data...</p>';
+  function backToSelection() {
+    document.getElementById('studentSelectionCard').classList.remove('hidden');
+    document.getElementById('actionCard').classList.add('hidden');
+    document.getElementById('violationsSection').classList.add('hidden');
+    document.getElementById('searchViolation').value = '';
+    document.getElementById('studentHistoryPreview').classList.add('hidden');
+    selectedStudent = null;
+  }
 
-  await fetchStudents();
-  await fetchHousePoints();
-  renderStudents();
-  showToast("Data diperbarui", "success");
-}
+  // === NFC ===
 
-// --- SUBMIT WITH NOTES & UNDO ---
-function submitTransaction(violation) {
-  const pointChange =
-    violation.type === "plus" ? violation.point : -violation.point;
-  const sign = violation.type === "plus" ? "+" : "-";
-  const color = violation.type === "plus" ? "var(--success)" : "var(--danger)";
+  function initStudentNFC() {
+    const nfcArea = document.getElementById('studentNfcArea');
+    if (!nfcArea) return;
 
-  showModal(
-    "Konfirmasi Poin",
-    `<div style="text-align:center; margin-bottom:6px;">
-        <strong style="font-size:15px;">${escapeHtml(selectedStudent.name)}</strong>
-     </div>
-     <div style="text-align:center; margin-bottom:14px;">
-        <strong style="font-size:22px; color:${color}; font-weight: 800;">${sign}${violation.point}</strong>
-        <span style="color: var(--gray-500); font-size: 13px;"> Poin</span>
-     </div>
-     <div style="text-align:center; color: var(--gray-500); font-size: 13px; margin-bottom: 8px;">${escapeHtml(violation.name)}</div>
-     <textarea id="noteInput" class="modal-textarea" placeholder="Catatan (opsional)..." rows="3"></textarea>`,
-    [
-      { text: "Batal", class: "btn-outline", onClick: closeModal },
-      {
-        text: "Ya, Berikan",
-        class: violation.type === "plus" ? "btn-plus" : "btn-minus",
-        keepOpen: true,
-        onClick: async () => {
-          document.getElementById("modalFooter").innerHTML =
-            '<p style="color: var(--gray-500); font-size:13px; align-self:center; width:100%; margin: 8px 0;">Memproses...</p>';
+    if (!('NDEFReader' in window)) {
+      nfcArea.innerHTML = `
+        <iconify-icon icon="mdi:alert-circle-outline" width="32"></iconify-icon>
+        <span><small>NFC not supported. Search manually below.</small></span>
+      `;
+      return;
+    }
 
-          const note = document.getElementById("noteInput").value;
-          try {
-            const res = await fetch(API_URL, {
-              method: "POST",
-              headers: { "Content-Type": "text/plain;charset=utf-8" },
-              body: JSON.stringify({
-                action: "addTransaction",
-                teacher_id: currentTeacher.id,
-                student_nis: selectedStudent.nis,
-                violation_id: violation.id,
-                point_change: pointChange,
-                note: note,
-              }),
+    nfcArea.addEventListener('click', async () => {
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        nfcArea.classList.add('scanning');
+        nfcArea.innerHTML = `
+          <iconify-icon icon="mdi:contactless-payment-circle" width="32"></iconify-icon>
+          <span>Hold student card near device...</span>
+        `;
+
+        ndef.addEventListener('reading', ({ serialNumber }) => {
+          const nfc_id = serialNumber.replace(/:/g, '').toUpperCase();
+          const found = studentsData.find(s => s.nfc_id === nfc_id);
+
+          if (found) {
+            T.vibrate(50);
+            T.showToast(`Student found: ${found.name}`, 'success');
+            selectStudent(found);
+            resetNfcArea();
+          } else {
+            nfcArea.classList.remove('scanning');
+            nfcArea.innerHTML = `
+              <iconify-icon icon="mdi:card-off-outline" width="32"></iconify-icon>
+              <span>Card ${T.escapeHtml(nfc_id)} is not registered!</span>
+            `;
+            setTimeout(resetNfcArea, 2500);
+          }
+        });
+      } catch (e) {
+        T.showToast('Failed to scan: ' + e.message, 'error');
+      }
+    });
+
+    function resetNfcArea() {
+      nfcArea.classList.remove('scanning');
+      nfcArea.innerHTML = `
+        <iconify-icon icon="mdi:nfc-variant" width="32"></iconify-icon>
+        <span>Tap a Student Card here</span>
+        <small style="font-weight: 500; opacity: 0.7;">Or search manually below</small>
+      `;
+    }
+  }
+
+  // === VIOLATIONS ===
+
+  function showViolations(type) {
+    currentViolationType = type;
+    document.getElementById('violationsSection').classList.remove('hidden');
+    renderViolations();
+  }
+
+  function renderViolations() {
+    if (!currentViolationType) return;
+    const searchVal = document.getElementById('searchViolation').value.toLowerCase().trim();
+    const list = document.getElementById('violationList');
+
+    const filtered = violationsData.filter(v => {
+      const vType = (v.type || '').toLowerCase();
+      const vName = (v.name || '').toLowerCase();
+      const typeMatch = vType === currentViolationType;
+      const searchMatch = !searchVal || vName.includes(searchVal);
+      const catMatch = !currentCategoryFilter || v.category === currentCategoryFilter;
+      return typeMatch && searchMatch && catMatch;
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = T.emptyState('mdi:format-list-bulleted', 'No items', 'Try a different keyword');
+      return;
+    }
+
+    list.innerHTML = filtered.map((v, idx) => {
+      const pointColor = v.type === 'plus' ? 'points-positive' : 'points-negative';
+      const sign = v.type === 'plus' ? '+' : '-';
+      return `
+        <div class="violation-item" data-vid="${T.escapeHtml(v.id)}" style="animation-delay:${Math.min(idx * 20, 200)}ms">
+          <div>
+            <div class="violation-name">${T.escapeHtml(v.name)}</div>
+            <span class="violation-category">${T.escapeHtml(v.category || 'General')}</span>
+          </div>
+          <div class="points-badge ${pointColor}">${sign}${T.formatNumber(v.point)}</div>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('.violation-item').forEach((item, i) => {
+      item.addEventListener('click', () => submitTransaction(filtered[i]));
+    });
+  }
+
+  // === TRANSACTION FLOW ===
+
+  function submitTransaction(violation) {
+    const pointChange = violation.type === 'plus' ? violation.point : -violation.point;
+    const sign = violation.type === 'plus' ? '+' : '-';
+    const color = violation.type === 'plus' ? 'var(--success)' : 'var(--danger)';
+    const btnClass = violation.type === 'plus' ? 'btn-plus' : 'btn-minus';
+
+    T.showModal(
+      'Confirm Points',
+      `
+        <div style="text-align:center; margin-bottom:6px;">
+          <strong style="font-size:15px;">${T.escapeHtml(selectedStudent.name)}</strong>
+        </div>
+        <div style="text-align:center; margin-bottom:14px;">
+          <strong style="font-size:32px; color:${color}; font-weight:800; display:block; line-height:1;">${sign}${violation.point}</strong>
+          <span style="color: var(--text-secondary); font-size: 13px;">Points</span>
+        </div>
+        <div style="text-align:center; color: var(--text-secondary); font-size: 13px; margin-bottom: 14px; padding: 10px; background: var(--bg-input); border-radius: var(--radius-md);">
+          ${T.escapeHtml(violation.name)}
+        </div>
+        <textarea id="noteInput" class="modal-textarea" placeholder="Note (optional)..." rows="3" maxlength="500"></textarea>
+        <div style="text-align:right; font-size:11px; color:var(--text-tertiary); margin-top:4px;">
+          <span id="noteCounter">0</span>/500
+        </div>
+      `,
+      [
+        { text: 'Cancel', class: 'btn-outline' },
+        {
+          text: `<iconify-icon icon="mdi:check"></iconify-icon> Confirm`,
+          class: btnClass,
+          keepOpen: true,
+          onClick: async () => {
+            const noteEl = document.getElementById('noteInput');
+            const counter = document.getElementById('noteCounter');
+            if (counter && noteEl) {
+              counter.textContent = noteEl.value.length;
+            }
+
+            const footer = document.getElementById('modalFooter');
+            footer.innerHTML = '<p style="color: var(--text-secondary); font-size:13px; padding: 10px 0;">⏳ Processing...</p>';
+
+            const note = noteEl ? noteEl.value : '';
+
+            const res = await T.api('addTransaction', {
+              teacher_id: currentTeacher.id,
+              student_nis: selectedStudent.nis,
+              violation_id: violation.id,
+              point_change: pointChange,
+              note
             });
-            const data = await res.json();
 
-            if (data.status === "success") {
-              const sIndex = studentsData.findIndex(
-                (s) => s.nis === selectedStudent.nis
-              );
-              if (sIndex >= 0) studentsData[sIndex].points = data.newPoints;
-              selectedStudent.points = data.newPoints;
+            if (res.status === 'success') {
+              T.vibrate(50);
+
+              // Update local state
+              const sIndex = studentsData.findIndex(s => String(s.nis) === String(selectedStudent.nis));
+              if (sIndex >= 0) studentsData[sIndex].points = res.newPoints;
+              selectedStudent.points = res.newPoints;
 
               lastTransaction = {
-                tr_id: data.tr_id,
+                tr_id: res.tr_id,
                 student_nis: selectedStudent.nis,
+                student_name: selectedStudent.name,
                 point_change: pointChange,
+                type: violation.type,
+                points: violation.point
               };
 
               fetchHousePoints();
-              showToast(`Poin berhasil ${violation.type === "plus" ? "ditambahkan" : "dikurangi"}`, "success");
+              renderStudents();
+              loadStudentHistory(selectedStudent.nis);
 
-              showModal(
-                "Berhasil!",
-                `<p>Poin telah ${violation.type === "plus" ? "ditambahkan ke" : "dikurangi dari"} <strong>${escapeHtml(selectedStudent.name)}</strong>.</p>`,
+              // Update header
+              const sign2 = res.newPoints > 0 ? '+' : '';
+              const pClass = res.newPoints >= 0 ? 'points-positive' : 'points-negative';
+              const headerInfo = document.querySelector('#studentDetailHeader .student-info-text');
+              if (headerInfo) {
+                const badge = headerInfo.querySelector('.points-badge');
+                if (badge) {
+                  badge.className = `points-badge ${pClass}`;
+                  badge.style.marginTop = '10px';
+                  badge.style.display = 'inline-block';
+                  badge.textContent = `Current Points: ${sign2}${T.formatNumber(res.newPoints)}`;
+                  T.pulse(badge);
+                }
+              }
+
+              // Milestone confetti
+              if (res.milestone) {
+                if (res.milestone.type === 'achievement') {
+                  T.confetti(0.5, 0.5);
+                  T.showToast(`🎉 Milestone! ${res.milestone.value} points reached!`, 'success', 4000);
+                } else {
+                  T.showToast(`⚠️ Points reached ${res.milestone.value}`, 'warning', 4000);
+                }
+              }
+
+              T.showToast(
+                `Points ${violation.type === 'plus' ? 'added' : 'subtracted'} successfully`,
+                'success'
+              );
+
+              T.showModal(
+                'Success!',
+                `<p>Points have been ${violation.type === 'plus' ? 'added to' : 'subtracted from'} <strong>${T.escapeHtml(selectedStudent.name)}</strong>.</p>
+                 <p style="margin-top:10px;">Current points: <strong style="color:var(--primary); font-size:18px;">${sign2}${T.formatNumber(res.newPoints)}</strong></p>`,
                 [
                   {
-                    text: "<iconify-icon icon='mdi:undo'></iconify-icon> Undo",
-                    class: "btn-outline",
-                    onClick: undoLastTransaction,
+                    text: '<iconify-icon icon="mdi:undo"></iconify-icon> Undo',
+                    class: 'btn-outline',
+                    onClick: undoLastTransaction
                   },
                   {
-                    text: "Selesai",
-                    class: "btn-primary",
+                    text: 'Done',
+                    class: 'btn-primary',
                     onClick: () => {
                       backToSelection();
-                      renderStudents();
-                      closeModal();
-                    },
-                  },
+                    }
+                  }
                 ]
               );
             } else {
-              showToast("Gagal: " + (data.message || "Unknown error"), "error");
-              closeModal();
+              T.showToast('Failed: ' + (res.message || 'Unknown error'), 'error');
+              T.closeModal();
             }
-          } catch (err) {
-            showToast("Gagal terhubung ke server", "error");
-            closeModal();
           }
-        },
-      },
-    ]
-  );
-}
+        }
+      ]
+    );
 
-async function undoLastTransaction() {
-  if (!lastTransaction) return;
+    setTimeout(() => {
+      const noteEl = document.getElementById('noteInput');
+      const counter = document.getElementById('noteCounter');
+      if (noteEl && counter) {
+        noteEl.addEventListener('input', () => {
+          counter.textContent = noteEl.value.length;
+        });
+        noteEl.focus();
+      }
+    }, 100);
+  }
 
-  document.getElementById("modalTitle").innerText = "Memproses...";
-  document.getElementById("modalBody").innerHTML =
-    "<p>Membatalkan transaksi...</p>";
-  document.getElementById("modalFooter").innerHTML = "";
+  async function undoLastTransaction() {
+    if (!lastTransaction) {
+      T.showToast('No transaction to undo', 'warning');
+      return;
+    }
 
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "undoTransaction",
-        tr_id: lastTransaction.tr_id,
-      }),
+    const res = await T.api('undoTransaction', {
+      tr_id: lastTransaction.tr_id,
+      actor: currentTeacher.id
     });
-    const data = await res.json();
 
-    if (data.status === "success") {
-      const sIndex = studentsData.findIndex(
-        (s) => s.nis === lastTransaction.student_nis
-      );
+    if (res.status === 'success') {
+      // Revert local state
+      const sIndex = studentsData.findIndex(s => String(s.nis) === String(lastTransaction.student_nis));
       if (sIndex >= 0) {
-        const revertedPoints =
-          parseInt(studentsData[sIndex].points) -
-          parseInt(lastTransaction.point_change);
-        studentsData[sIndex].points = revertedPoints;
-        if (selectedStudent) selectedStudent.points = revertedPoints;
+        studentsData[sIndex].points -= lastTransaction.point_change;
+        if (selectedStudent) selectedStudent.points -= lastTransaction.point_change;
       }
 
-      fetchHousePoints();
       lastTransaction = null;
-      showToast("Transaksi dibatalkan", "success");
+      fetchHousePoints();
+      renderStudents();
 
-      showModal("Dibatalkan", "<p>Transaksi terakhir telah dibatalkan.</p>", [
-        {
-          text: "OK",
-          class: "btn-primary",
-          onClick: () => {
-            backToSelection();
-            renderStudents();
-            closeModal();
-          },
-        },
+      T.showToast('Transaction cancelled', 'success');
+      T.showModal('Cancelled', '<p>The last transaction has been cancelled and the points returned.</p>', [
+        { text: 'OK', class: 'btn-primary', onClick: backToSelection }
       ]);
     } else {
-      showToast("Gagal undo: " + (data.message || ""), "error");
-      closeModal();
+      T.showToast('Undo failed: ' + (res.message || ''), 'error');
+      T.closeModal();
     }
-  } catch (err) {
-    showToast("Gagal terhubung ke server", "error");
-    closeModal();
   }
-}
+
+  // === REFRESH ===
+  async function refreshDashboard() {
+    document.getElementById('studentList').innerHTML =
+      '<p class="loading-text">Reloading...</p>';
+    await Promise.all([
+      fetchStudents(),
+      fetchHousePoints(),
+      fetchDashboardStats()
+    ]);
+    T.showToast('Data refreshed', 'success', 1500);
+  }
+
+  // Expose globally for inline onclick handlers
+  window.refreshDashboard = refreshDashboard;
+  window.showViolations = showViolations;
+
+})();

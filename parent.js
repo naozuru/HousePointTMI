@@ -1,165 +1,153 @@
-function showToast(msg, type = '') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast show ' + type;
-    setTimeout(() => t.classList.remove('show'), 3000);
-}
+/**
+ * Parent Portal
+ */
+(function () {
+  'use strict';
 
-function createStudentAvatar(student, sizeClass = '') {
-    const avatar = document.createElement('div');
-    avatar.className = `student-avatar ${sizeClass}`;
-    const initials = (student.name || '?').split(' ').map(p => p.charAt(0)).slice(0, 2).join('').toUpperCase();
-    avatar.textContent = initials;
-    if (student.photo_url && typeof student.photo_url === 'string' && student.photo_url.startsWith('http')) {
-        const img = new Image();
-        img.className = `student-avatar-img ${sizeClass}`;
-        img.src = student.photo_url;
-        img.onload = () => {
-            avatar.innerHTML = '';
-            avatar.appendChild(img);
-        };
+  const T = window.TMI;
+
+  // Form submit handler
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('loginForm');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loginParent();
+      });
     }
-    return avatar;
-}
 
-function getHouseColor(house) {
-    if (!house) return 'var(--primary)';
-    const h = String(house).toLowerCase();
-    if (h.includes('jjt')) return '#004632';
-    if (h.includes('jensud')) return '#00835c';
-    if (h.includes('munir')) return '#2ea876';
-    return 'var(--primary)';
-}
+    // Auto-focus NIS input
+    const nisInput = document.getElementById('nisInput');
+    if (nisInput) nisInput.focus();
 
-async function loginParent() {
+    // Remember last NIS
+    const saved = T.store.get('lastNis');
+    if (saved && nisInput) nisInput.value = saved;
+  });
+
+  async function loginParent() {
     const nis = document.getElementById('nisInput').value.trim();
     if (!nis) {
-        showToast('Masukkan NIS siswa', 'error');
-        return;
+      T.showToast('Please enter the student NIS', 'error');
+      return;
+    }
+
+    if (!/^\d+$/.test(nis)) {
+      T.showToast('NIS must be numeric', 'error');
+      return;
     }
 
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
-    btn.innerHTML = '<iconify-icon icon="mdi:loading"></iconify-icon> Memuat...';
+    btn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> Loading...';
 
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'parentLogin', nis: nis })
-        });
-        const data = await res.json();
+    T.store.set('lastNis', nis);
 
-        if (data.status === 'success') {
-            document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('parentDashboard').classList.remove('hidden');
+    const res = await T.api('parentLogin', { nis });
 
-            const s = data.student;
-            const pointClass = s.points >= 0 ? 'points-positive' : 'points-negative';
-            const sign = s.points > 0 ? '+' : '';
-            const houseColor = getHouseColor(s.house);
+    if (res.status === 'success') {
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('parentDashboard').classList.remove('hidden');
 
-            // Hitung statistik
-            const positiveCount = data.history.filter(t => t.points > 0).length;
-            const negativeCount = data.history.filter(t => t.points < 0).length;
-            const totalTransactions = data.history.length;
+      renderHeader(res.student, res.stats || {});
+      renderHistory(res.history || []);
 
-            // Render header
-            const headerDiv = document.getElementById('parentStudentHeader');
-            headerDiv.innerHTML = '';
-
-            const avatar = createStudentAvatar(s);
-            const infoDiv = document.createElement('div');
-            infoDiv.innerHTML = `
-                <h3 style="margin-top: 14px;">${escapeHtml(s.name)}</h3>
-                <p>Kelas ${escapeHtml(s.class)} • <span style="color:${houseColor}; font-weight: 700;">Rumah ${escapeHtml(s.house || '-')}</span></p>
-                <div class="current-points points-badge ${pointClass}">Total Poin: ${sign}${s.points}</div>
-                <div class="parent-summary">
-                    <div class="summary-card primary">
-                        <div class="label">Total Transaksi</div>
-                        <div class="value">${totalTransactions}</div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="label" style="color: var(--success);">Penghargaan</div>
-                        <div class="value" style="color: var(--success);">${positiveCount}</div>
-                    </div>
-                </div>
-            `;
-            headerDiv.appendChild(avatar);
-            headerDiv.appendChild(infoDiv);
-
-            // Render history
-            const list = document.getElementById('parentHistoryList');
-            list.innerHTML = '';
-            if (!data.history || data.history.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <iconify-icon icon="mdi:history"></iconify-icon>
-                        <div class="title">Belum ada riwayat</div>
-                        <div class="subtitle">Transaksi poin akan muncul di sini</div>
-                    </div>
-                `;
-            } else {
-                data.history.forEach(t => {
-                    const div = document.createElement('div');
-                    div.className = 'list-item';
-                    const pClass = t.points >= 0 ? 'points-positive' : 'points-negative';
-                    const sign = t.points > 0 ? '+' : '';
-                    const formattedDate = new Date(t.date).toLocaleDateString('id-ID', {
-                        day: '2-digit', month: 'short', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    });
-                    div.innerHTML = `
-                        <div class="history-meta">
-                            <span class="history-date">${formattedDate}</span>
-                            <span class="history-note">${escapeHtml(t.note || 'Tanpa catatan')}</span>
-                        </div>
-                        <div class="points-badge ${pClass}">${sign}${t.points}</div>
-                    `;
-                    list.appendChild(div);
-                });
-            }
-
-            showToast('Data berhasil dimuat', 'success');
-        } else {
-            showToast('NIS tidak ditemukan', 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<iconify-icon icon="mdi:eye-outline"></iconify-icon> Lihat Poin';
-        }
-    } catch (err) {
-        showToast('Gagal terhubung ke server', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '<iconify-icon icon="mdi:eye-outline"></iconify-icon> Lihat Poin';
+      T.showToast('Data loaded successfully', 'success');
+    } else {
+      T.showToast(res.message || 'NIS not found', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<iconify-icon icon="mdi:eye-outline"></iconify-icon> View Points';
     }
-}
+  }
 
-function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+  function renderHeader(s, stats) {
+    const pointClass = s.points >= 0 ? 'points-positive' : 'points-negative';
+    const sign = s.points > 0 ? '+' : '';
+    const houseColor = T.getHouseColor(s.house);
 
-// Form submit handler
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('loginForm');
-    if (form) {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            loginParent();
-        });
+    const headerDiv = document.getElementById('parentStudentHeader');
+    headerDiv.innerHTML = '';
+
+    const avatar = T.createAvatar(s, 'large house-' + (s.house || ''));
+    const infoDiv = document.createElement('div');
+    infoDiv.style.cssText = 'flex:1; min-width:0;';
+    infoDiv.innerHTML = `
+      <h3 style="margin-top: 14px;">${T.escapeHtml(s.name)}</h3>
+      <p>
+        Grade ${T.escapeHtml(s.class)}
+        ${s.house ? `• <span style="color:${houseColor}; font-weight: 700;">House ${T.escapeHtml(s.house)}</span>` : ''}
+        ${s.nis ? `• NIS: ${T.escapeHtml(String(s.nis))}` : ''}
+      </p>
+      <div class="points-badge ${pointClass}" style="margin-top:12px; display:inline-block; font-size:14px; padding:6px 14px;">
+        Total Points: ${sign}${T.formatNumber(s.points)}
+      </div>
+
+      <div class="parent-summary">
+        <div class="summary-card primary">
+          <div class="label">Transactions</div>
+          <div class="value">${stats.total_transactions ?? 0}</div>
+        </div>
+        <div class="summary-card">
+          <div class="label" style="color: var(--success);">Awards</div>
+          <div class="value" style="color: var(--success);">+${stats.total_positive ?? 0}</div>
+        </div>
+        <div class="summary-card">
+          <div class="label" style="color: var(--danger);">Violations</div>
+          <div class="value" style="color: var(--danger);">-${stats.total_negative ?? 0}</div>
+        </div>
+      </div>
+    `;
+
+    headerDiv.appendChild(avatar);
+    headerDiv.appendChild(infoDiv);
+
+    // Achievement check
+    if (s.points >= 50) {
+      const achievement = document.createElement('div');
+      achievement.style.cssText = 'margin-top: 14px; padding: 10px 14px; background: linear-gradient(135deg, #fde047, #f59e0b); color: white; border-radius: var(--radius-md); font-size: 13px; font-weight: 700;';
+      achievement.innerHTML = `<iconify-icon icon="mdi:trophy"></iconify-icon> Congratulations! Outstanding achievement: ${s.points} points!`;
+      infoDiv.appendChild(achievement);
+    } else if (s.points < -25) {
+      const warning = document.createElement('div');
+      warning.style.cssText = 'margin-top: 14px; padding: 10px 14px; background: var(--warning-soft); color: var(--warning); border-radius: var(--radius-md); font-size: 13px; font-weight: 700;';
+      warning.innerHTML = `<iconify-icon icon="mdi:alert"></iconify-icon> Please pay attention to the student's behaviour. Contact the homeroom teacher for a consultation.`;
+      infoDiv.appendChild(warning);
     }
-});
+  }
 
-function logoutParent() {
+  function renderHistory(history) {
+    const list = document.getElementById('parentHistoryList');
+    if (!history || history.length === 0) {
+      list.innerHTML = T.emptyState('mdi:history', 'No history yet', 'Point transactions will appear here');
+      return;
+    }
+
+    list.innerHTML = history.map(t => {
+      const pClass = t.points >= 0 ? 'points-positive' : 'points-negative';
+      const sign = t.points > 0 ? '+' : '';
+      return `
+        <div class="history-item">
+          <div class="history-meta">
+            <span class="history-date">${T.formatDate(t.date)} • ${T.formatTime(t.date)}</span>
+            ${t.violation_name ? `<span class="history-violation">${T.escapeHtml(t.violation_name)}</span>` : ''}
+            <span class="history-note">${T.escapeHtml(t.note || 'No note')}</span>
+          </div>
+          <div class="points-badge ${pClass}">${sign}${T.formatNumber(t.points)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function logoutParent() {
     document.getElementById('nisInput').value = '';
     document.getElementById('parentDashboard').classList.add('hidden');
     document.getElementById('loginPage').classList.remove('hidden');
     const btn = document.getElementById('loginBtn');
     if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<iconify-icon icon="mdi:eye-outline"></iconify-icon> Lihat Poin';
+      btn.disabled = false;
+      btn.innerHTML = '<iconify-icon icon="mdi:eye-outline"></iconify-icon> View Points';
     }
-}
+  }
+
+  window.logoutParent = logoutParent;
+})();

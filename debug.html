@@ -1,79 +1,90 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debug Apps Script - Tunas Mekar</title>
+    <title>Debug Tools - Tunas Mekar Indonesia</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="config.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        button { background: #004632; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }
-        button:hover { background: #003524; }
-        pre { background: #f0f0f0; padding: 15px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
-        .status { font-weight: bold; margin-bottom: 15px; padding: 10px; border-radius: 4px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
+        body { font-family: "Inter", system-ui, sans-serif; padding: 20px; background: var(--bg-app); }
+        .container { max-width: 900px; margin: 0 auto; background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 1px solid var(--border); }
+        h2 { color: var(--primary); margin-bottom: 8px; }
+        .subtitle { color: var(--text-secondary); margin-bottom: 20px; font-size: 14px; }
+        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        button { background: linear-gradient(135deg, var(--primary), var(--primary-600)); color: white; border: none; padding: 12px 16px; font-size: 13px; font-weight: 700; border-radius: var(--radius-md); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all var(--dur) var(--ease); }
+        button:hover { transform: translateY(-1px); box-shadow: var(--shadow-primary); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        pre { background: var(--bg-input); padding: 16px; border-radius: var(--radius-md); overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 12px; max-height: 500px; overflow-y: auto; border: 1px solid var(--border); font-family: "Monaco", "Consolas", monospace; }
+        .status { font-weight: 600; margin-bottom: 15px; padding: 10px 14px; border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px; }
+        .success { background: var(--success-soft); color: var(--success); }
+        .error { background: var(--danger-soft); color: var(--danger); }
+        .warning { background: var(--warning-soft); color: var(--warning); }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <h2>🔧 Debug Tools - Tunas Mekar Indonesia</h2>
-    <p>Klik tombol di bawah untuk mengecek apakah server berhasil mengambil data dari sheet <b>Violations</b>.</p>
-    
-    <button onclick="testViolations()">Cek Data Violations</button>
+    <h2><iconify-icon icon="mdi:bug"></iconify-icon> Debug Tools - Tunas Mekar Indonesia v2.0</h2>
+    <p class="subtitle">Test the Google Apps Script endpoint with various actions to verify the connection and sheet schema.</p>
+
+    <div class="button-grid">
+        <button onclick="test('getStudents')"><iconify-icon icon="mdi:account-group"></iconify-icon> getStudents</button>
+        <button onclick="test('getViolations')"><iconify-icon icon="mdi:format-list-bulleted"></iconify-icon> getViolations</button>
+        <button onclick="test('getHousePoints')"><iconify-icon icon="mdi:shield-star"></iconify-icon> getHousePoints</button>
+        <button onclick="test('getLeaderboard')"><iconify-icon icon="mdi:trophy"></iconify-icon> getLeaderboard</button>
+        <button onclick="test('getDashboardStats')"><iconify-icon icon="mdi:chart-box"></iconify-icon> getDashboardStats</button>
+        <button onclick="test('getClassStats')"><iconify-icon icon="mdi:school"></iconify-icon> getClassStats</button>
+        <button onclick="test('getHistory', {viewType:'weekly'})"><iconify-icon icon="mdi:history"></iconify-icon> getHistory</button>
+        <button onclick="test('getHouseHistory', {months:6})"><iconify-icon icon="mdi:chart-line"></iconify-icon> getHouseHistory</button>
+        <button onclick="test('getAuditLog')"><iconify-icon icon="mdi:shield-account"></iconify-icon> getAuditLog</button>
+        <button onclick="test('getAnnouncements')"><iconify-icon icon="mdi:bullhorn"></iconify-icon> getAnnouncements</button>
+    </div>
 
     <div id="statusText" class="status" style="display: none;"></div>
 
-    <h3>Raw JSON Response:</h3>
-    <pre id="output">Belum ada data. Klik tombol di atas.</pre>
+    <h3>Raw Response:</h3>
+    <pre id="output">Click a button to start testing...</pre>
 </div>
 
+<script src="shared.js"></script>
 <script>
-    // URL Apps Script kamu
-    const API_URL = "https://script.google.com/macros/s/AKfycbyHFYBFHHjkKRJYWvwCXOes0zaEgl9lx86jNIY8MWTVplw7REj8L87kQSgjOYhAP7e8gw/exec";
+async function test(action, params = {}) {
+    const outputDiv = document.getElementById('output');
+    const statusDiv = document.getElementById('statusText');
 
-    async function testViolations() {
-        const outputDiv = document.getElementById('output');
-        const statusDiv = document.getElementById('statusText');
-        
-        outputDiv.textContent = "Loading... Mengirim request ke server...";
-        statusDiv.style.display = 'none';
+    outputDiv.textContent = `Loading... ${action}`;
+    statusDiv.style.display = 'none';
 
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Wajib pakai ini agar Apps Script tidak CORS error
-                body: JSON.stringify({
-                    action: 'getViolations',
-                    type: 'all' // Minta semua data violations
-                })
-            });
+    const start = performance.now();
+    const data = await window.TMI.api(action, params);
+    const ms = Math.round(performance.now() - start);
 
-            const data = await res.json();
-            
-            // Tampilkan raw JSON
-            outputDiv.textContent = JSON.stringify(data, null, 2);
+    outputDiv.textContent = JSON.stringify(data, null, 2);
 
-            // Cek status
-            if (data.status === 'success') {
-                statusDiv.style.display = 'block';
-                statusDiv.className = 'status success';
-                statusDiv.textContent = `✅ Berhasil! Ditemukan ${data.violations.length} data pelanggaran/poin.`;
-            } else {
-                statusDiv.style.display = 'block';
-                statusDiv.className = 'status error';
-                statusDiv.textContent = `❌ Gagal! Server merespons dengan status error.`;
-            }
-
-        } catch (error) {
-            outputDiv.textContent = "Terjadi error saat fetch: " + error;
-            statusDiv.style.display = 'block';
-            statusDiv.className = 'status error';
-            statusDiv.textContent = `❌ Error koneksi: ${error.message}`;
-        }
+    statusDiv.style.display = 'flex';
+    if (data.status === 'success' || data.status === 'ok') {
+        statusDiv.className = 'status success';
+        let info = `✅ ${action} OK (${ms}ms)`;
+        if (data.students) info += ` - ${data.students.length} students`;
+        else if (data.violations) info += ` - ${data.violations.length} violations`;
+        else if (data.houses) info += ` - ${Object.keys(data.houses).length} houses`;
+        else if (data.all) info += ` - ${data.all.length} students`;
+        else if (data.transactions) info += ` - ${data.transactions.length} transactions`;
+        else if (data.classes) info += ` - ${data.classes.length} classes`;
+        else if (data.stats) info += ` - ${data.stats.total_students || 0} students`;
+        else if (data.history) info += ` - ${Object.keys(data.history).length} houses`;
+        else if (data.logs) info += ` - ${data.logs.length} logs`;
+        else if (data.announcements) info += ` - ${data.announcements.length} announcements`;
+        statusDiv.innerHTML = `<iconify-icon icon="mdi:check-circle"></iconify-icon> ${info}`;
+    } else if (data._networkError) {
+        statusDiv.className = 'status error';
+        statusDiv.innerHTML = `<iconify-icon icon="mdi:wifi-off"></iconify-icon> ❌ Failed to reach server`;
+    } else {
+        statusDiv.className = 'status warning';
+        statusDiv.innerHTML = `<iconify-icon icon="mdi:alert"></iconify-icon> ⚠️ ${data.message || 'Unknown error'}`;
     }
+}
 </script>
-
 </body>
 </html>

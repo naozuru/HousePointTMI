@@ -1,62 +1,100 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Wali Murid - TMI</title>
+    <meta name="theme-color" content="#004632">
+    <title>Parent Portal - TMI</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="config.js"></script>
 </head>
 <body>
+
+    <style>
+        .parent-footer {
+            margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+        .footer-link {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            transition: color var(--dur) var(--ease);
+        }
+        .footer-link:hover { color: var(--primary); }
+    </style>
     <!-- LOGIN PAGE -->
     <div class="login-container" id="loginPage">
         <div class="login-card">
             <div class="logo-area">
-                <div class="logo-circle">
+                <div class="logo-login">
                     <iconify-icon icon="mdi:account-child" width="40"></iconify-icon>
                 </div>
-                <h1>Portal Wali Murid</h1>
+                <h1>Parent Portal</h1>
                 <p>Tunas Mekar Indonesia</p>
             </div>
             <form id="loginForm">
                 <div class="input-group">
-                    <input type="text" id="nisInput" placeholder="Masukkan NIS Siswa" required inputmode="numeric" autocomplete="off">
+                    <input type="text" id="nisInput" placeholder="Enter Student NIS" required inputmode="numeric" autocomplete="off" pattern="[0-9]*">
                     <iconify-icon icon="mdi:card-account-details-outline" class="input-icon"></iconify-icon>
                 </div>
                 <button type="submit" class="btn btn-primary" id="loginBtn">
-                    <iconify-icon icon="mdi:eye-outline"></iconify-icon> Lihat Poin
+                    <iconify-icon icon="mdi:eye-outline"></iconify-icon> View Points
                 </button>
             </form>
-
-            <div style="margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--gray-100);">
-                <a href="index.html" style="color: var(--gray-500); font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
+            <div class="parent-footer">
+                <a href="index.html" class="footer-link">
                     <iconify-icon icon="mdi:school"></iconify-icon>
-                    Login sebagai Guru
+                    Sign in as Teacher
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- DASHBOARD PAGE -->
+    <!-- DASHBOARD -->
     <main class="dashboard-container hidden" id="parentDashboard">
         <div class="card">
             <button class="btn-back" onclick="logoutParent()">
-                <iconify-icon icon="mdi:logout"></iconify-icon> Keluar
+                <iconify-icon icon="mdi:logout"></iconify-icon> Sign Out
             </button>
             <div id="parentStudentHeader"></div>
         </div>
 
         <div class="card">
-            <h3>
-                <iconify-icon icon="mdi:history"></iconify-icon> Riwayat Poin
-            </h3>
-            <div class="list-container" id="parentHistoryList"></div>
+            <div class="card-header-row">
+                <h3><iconify-icon icon="mdi:history"></iconify-icon> Points History</h3>
+                <button class="btn btn-outline" onclick="window.print()" style="padding: 8px 14px; font-size: 13px;">
+                    <iconify-icon icon="mdi:printer"></iconify-icon> Print
+                </button>
+            </div>
+            <div class="list-container" id="parentHistoryList">
+                <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3><iconify-icon icon="mdi:information-outline"></iconify-icon> Information</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.7;">
+                This portal shows your child's points data. If you have any questions or notice a discrepancy, please contact the homeroom teacher or the Student Affairs Office.
+            </p>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-top: 10px;">
+                <iconify-icon icon="mdi:shield-check" style="color: var(--success);"></iconify-icon>
+                Data is protected and can only be accessed with the student's NIS.
+            </p>
         </div>
     </main>
 
-    <div id="toast" class="toast"></div>
-
-    <script src="config.js"></script>
+    <script src="shared.js"></script>
+    <script src="app.js"></script>
     <script src="parent.js"></script>
 </body>
 </html>

@@ -1,163 +1,282 @@
 <!DOCTYPE html>
-<html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
-    <title>Laporan - Tunas Mekar Indonesia</title>
-    <link rel="stylesheet" href="style.css" />
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#004632">
+    <title>Reports - Tunas Mekar Indonesia</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-  </head>
-  <body>
+    <script src="config.js"></script>
+</head>
+<body>
     <header class="app-header">
-      <div class="header-left">
-        <button
-          class="btn-back"
-          onclick="window.location.href='dashboard.html'"
-          style="margin: 0; padding: 8px 12px;"
-        >
-          <iconify-icon icon="mdi:arrow-left"></iconify-icon>
-        </button>
-        <div>
-          <h2>Laporan & Ranking</h2>
-          <small>House Points TMI</small>
+        <div class="header-left">
+            <button class="btn-back" onclick="window.location.href='dashboard.html'" style="margin:0; padding:8px 12px;">
+                <iconify-icon icon="mdi:arrow-left"></iconify-icon>
+            </button>
+            <div class="logo-circle small header-logo">
+                <iconify-icon icon="mdi:sprout" width="22"></iconify-icon>
+            </div>
+            <div class="header-titles">
+                <h2>Reports & Ranking</h2>
+                <small>House Points TMI</small>
+            </div>
         </div>
-      </div>
-      <div class="header-right">
-        <button class="btn-logout" onclick="logout()" title="Logout">
-          <iconify-icon icon="mdi:logout"></iconify-icon>
-        </button>
-      </div>
+        <div class="header-right">
+            <button class="btn-logout" onclick="window.TMI.logout()" title="Logout">
+                <iconify-icon icon="mdi:logout"></iconify-icon>
+            </button>
+        </div>
     </header>
 
     <main class="dashboard-container">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('ranking')">
-          <iconify-icon icon="mdi:trophy-outline"></iconify-icon> Peringkat
-        </button>
-        <button class="tab-btn" onclick="switchTab('history')">
-          <iconify-icon icon="mdi:chart-bar"></iconify-icon> Riwayat
-        </button>
-      </div>
-
-      <!-- TAB 1: RANKING -->
-      <div id="rankingTab" class="tab-content">
-        <div class="card">
-          <h3>
-            <iconify-icon icon="mdi:filter-variant"></iconify-icon> Filter Data
-          </h3>
-          <div class="filter-row">
-            <select id="levelFilter" onchange="fetchLeaderboard()">
-              <option value="all">Semua Level</option>
-              <option value="JHS">JHS (7-9)</option>
-              <option value="SHS">SHS (10-12)</option>
-            </select>
-            <select id="gradeFilter" onchange="fetchLeaderboard()">
-              <option value="all">Semua Kelas</option>
-              <option value="7">Kelas 7</option>
-              <option value="8">Kelas 8</option>
-              <option value="9">Kelas 9</option>
-              <option value="10">Kelas 10</option>
-              <option value="11">Kelas 11</option>
-              <option value="12">Kelas 12</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="highlight-container">
-          <div class="highlight-card highest" id="highestCard">
-            <p class="highlight-title">
-              <iconify-icon icon="mdi:arrow-up-bold"></iconify-icon> Tertinggi
-            </p>
-            <div class="highlight-avatar" id="highestAvatar"></div>
-            <h4 id="highestName">-</h4>
-            <p id="highestClass">-</p>
-            <div class="highlight-points" id="highestPoints">0</div>
-          </div>
-          <div class="highlight-card lowest" id="lowestCard">
-            <p class="highlight-title">
-              <iconify-icon icon="mdi:arrow-down-bold"></iconify-icon> Terendah
-            </p>
-            <div class="highlight-avatar" id="lowestAvatar"></div>
-            <h4 id="lowestName">-</h4>
-            <p id="lowestClass">-</p>
-            <div class="highlight-points" id="lowestPoints">0</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>
-            <iconify-icon icon="mdi:format-list-numbered"></iconify-icon>
-            Peringkat Keseluruhan
-          </h3>
-          <div id="allStudentsList" class="list-container">
-            <p class="loading-text">Memuat data...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: HISTORY & CHART -->
-      <div id="historyTab" class="tab-content hidden">
-        <div class="card">
-          <h3>
-            <iconify-icon icon="mdi:chart-line"></iconify-icon> Grafik Aktivitas
-          </h3>
-          <div class="filter-row">
-            <select id="monthFilter" onchange="fetchHistory()">
-              <option value="Januari">Januari</option>
-              <option value="Februari">Februari</option>
-              <option value="Maret">Maret</option>
-              <option value="April">April</option>
-              <option value="Mei">Mei</option>
-              <option value="Juni">Juni</option>
-              <option value="Juli">Juli</option>
-              <option value="Agustus">Agustus</option>
-              <option value="September">September</option>
-              <option value="Oktober">Oktober</option>
-              <option value="November">November</option>
-              <option value="Desember">Desember</option>
-            </select>
-            <select id="viewTypeFilter" onchange="fetchHistory()">
-              <option value="monthly">Bulanan</option>
-              <option value="weekly">Mingguan</option>
-              <option value="daily">Harian</option>
-            </select>
-          </div>
-
-          <div class="chart-container">
-            <canvas id="pointsChart"></canvas>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>
-            <iconify-icon icon="mdi:history"></iconify-icon> Riwayat Transaksi
-          </h3>
-          <div id="historyList" class="list-container">
-            <p class="loading-text">Memuat riwayat...</p>
-          </div>
-          <div class="action-buttons" style="margin-top: 18px;">
-            <button class="btn btn-outline" onclick="exportData('excel')">
-              <iconify-icon icon="mdi:file-excel"></iconify-icon> Excel
+        <div class="tabs" id="mainTabs">
+            <button class="tab-btn active" data-tab="ranking">
+                <iconify-icon icon="mdi:trophy-outline"></iconify-icon> Ranking
             </button>
-            <button class="btn btn-outline" onclick="exportData('pdf')">
-              <iconify-icon icon="mdi:file-pdf-box"></iconify-icon> PDF
+            <button class="tab-btn" data-tab="history">
+                <iconify-icon icon="mdi:chart-bar"></iconify-icon> History
             </button>
-          </div>
+            <button class="tab-btn" data-tab="houses">
+                <iconify-icon icon="mdi:shield-star"></iconify-icon> Houses
+            </button>
+            <button class="tab-btn" data-tab="classes">
+                <iconify-icon icon="mdi:school"></iconify-icon> Classes
+            </button>
+            <button class="tab-btn" data-tab="students">
+                <iconify-icon icon="mdi:account-multiple"></iconify-icon> Students
+            </button>
+            <button class="tab-btn" data-tab="export">
+                <iconify-icon icon="mdi:download"></iconify-icon> Export
+            </button>
         </div>
-      </div>
+
+        <!-- TAB: RANKING -->
+        <div id="rankingTab" class="tab-content">
+            <div class="card">
+                <h3><iconify-icon icon="mdi:filter-variant"></iconify-icon> Filter Data</h3>
+                <div class="filter-row">
+                    <select id="levelFilter">
+                        <option value="all">All Levels</option>
+                        <option value="JHS">JHS (7-9)</option>
+                        <option value="SHS">SHS (10-12)</option>
+                    </select>
+                    <select id="gradeFilter">
+                        <option value="all">All Grades</option>
+                        <option value="7">Grade 7</option>
+                        <option value="8">Grade 8</option>
+                        <option value="9">Grade 9</option>
+                        <option value="10">Grade 10</option>
+                        <option value="11">Grade 11</option>
+                        <option value="12">Grade 12</option>
+                    </select>
+                    <select id="houseFilter">
+                        <option value="all">All Houses</option>
+                        <option value="JJT">JJT</option>
+                        <option value="Jensud">Jensud</option>
+                        <option value="Munir">Munir</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="highlight-container">
+                <div class="highlight-card highest" id="highestCard">
+                    <p class="highlight-title"><iconify-icon icon="mdi:arrow-up-bold"></iconify-icon> Highest</p>
+                    <div class="highlight-avatar" id="highestAvatar"></div>
+                    <h4 id="highestName">-</h4>
+                    <p id="highestClass">-</p>
+                    <div class="highlight-points" id="highestPoints">0 Points</div>
+                </div>
+                <div class="highlight-card lowest" id="lowestCard">
+                    <p class="highlight-title"><iconify-icon icon="mdi:arrow-down-bold"></iconify-icon> Lowest</p>
+                    <div class="highlight-avatar" id="lowestAvatar"></div>
+                    <h4 id="lowestName">-</h4>
+                    <p id="lowestClass">-</p>
+                    <div class="highlight-points" id="lowestPoints">0 Points</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><iconify-icon icon="mdi:format-list-numbered"></iconify-icon> Overall Ranking</h3>
+                <div id="allStudentsList" class="list-container">
+                    <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                    <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                    <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: HISTORY -->
+        <div id="historyTab" class="tab-content hidden">
+            <div class="card">
+                <h3><iconify-icon icon="mdi:chart-line"></iconify-icon> Activity Chart</h3>
+                <div class="filter-row">
+                    <select id="monthFilter">
+                        <option value="all">All Months</option>
+                        <option value="January">January</option>
+                        <option value="February">February</option>
+                        <option value="March">March</option>
+                        <option value="April">April</option>
+                        <option value="May">May</option>
+                        <option value="June">June</option>
+                        <option value="July">July</option>
+                        <option value="August">August</option>
+                        <option value="September">September</option>
+                        <option value="October">October</option>
+                        <option value="November">November</option>
+                        <option value="December">December</option>
+                    </select>
+                    <select id="viewTypeFilter">
+                        <option value="all">All</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="weekly">Last 7 Days</option>
+                        <option value="daily">Today</option>
+                    </select>
+                    <select id="historyHouseFilter">
+                        <option value="">All Houses</option>
+                        <option value="JJT">JJT</option>
+                        <option value="Jensud">Jensud</option>
+                        <option value="Munir">Munir</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="pointsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><iconify-icon icon="mdi:history"></iconify-icon> Transaction History</h3>
+                <div id="historyList" class="list-container">
+                    <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: HOUSES -->
+        <div id="housesTab" class="tab-content hidden">
+            <div class="card">
+                <h3><iconify-icon icon="mdi:shield-star"></iconify-icon> House Battle</h3>
+                <div class="house-battle" id="houseBattle">
+                    <div class="skeleton" style="height:60px;"></div>
+                    <div class="skeleton" style="height:60px;"></div>
+                    <div class="skeleton" style="height:60px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><iconify-icon icon="mdi:chart-line"></iconify-icon> Last 6 Months Trend</h3>
+                <div class="chart-container">
+                    <canvas id="houseChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><iconify-icon icon="mdi:account-group"></iconify-icon> Top 3 per House</h3>
+                <div id="houseTopList" class="list-container"></div>
+            </div>
+        </div>
+
+        <!-- TAB: CLASSES -->
+        <div id="classesTab" class="tab-content hidden">
+            <div class="card">
+                <h3><iconify-icon icon="mdi:school"></iconify-icon> Statistics per Class</h3>
+                <div id="classStats" class="list-container">
+                    <div class="skeleton skeleton-list-item" style="height:60px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: STUDENTS -->
+        <div id="studentsTab" class="tab-content hidden">
+            <div class="card">
+                <h3><iconify-icon icon="mdi:filter-variant"></iconify-icon> Filter Students</h3>
+                <div class="filter-row">
+                    <select id="studentsLevelFilter">
+                        <option value="all">All Levels</option>
+                        <option value="JHS">JHS (7-9)</option>
+                        <option value="SHS">SHS (10-12)</option>
+                    </select>
+                    <select id="studentsGradeFilter">
+                        <option value="all">All Grades</option>
+                        <option value="7">Grade 7</option>
+                        <option value="8">Grade 8</option>
+                        <option value="9">Grade 9</option>
+                        <option value="10">Grade 10</option>
+                        <option value="11">Grade 11</option>
+                        <option value="12">Grade 12</option>
+                    </select>
+                    <select id="studentsHouseFilter">
+                        <option value="all">All Houses</option>
+                        <option value="JJT">JJT</option>
+                        <option value="Jensud">Jensud</option>
+                        <option value="Munir">Munir</option>
+                    </select>
+                </div>
+                <div class="action-buttons" style="margin-bottom: 14px;">
+                    <button class="btn btn-outline" onclick="exportStudentsReport('excel')">
+                        <iconify-icon icon="mdi:file-excel"></iconify-icon> Excel (.xlsx)
+                    </button>
+                    <button class="btn btn-outline" onclick="exportStudentsReport('pdf')">
+                        <iconify-icon icon="mdi:file-pdf-box"></iconify-icon> PDF (A4)
+                    </button>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                    Showing students sorted by Total Points (highest first). Table columns: #, NIS, Name, Grade, House, Total Points.
+                </div>
+                <div id="studentsReportList" class="list-container" style="max-height: 560px;">
+                    <div class="skeleton skeleton-list-item" style="height:48px;"></div>
+                    <div class="skeleton skeleton-list-item" style="height:48px;"></div>
+                    <div class="skeleton skeleton-list-item" style="height:48px;"></div>
+                    <div class="skeleton skeleton-list-item" style="height:48px;"></div>
+                    <div class="skeleton skeleton-list-item" style="height:48px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: EXPORT -->
+        <div id="exportTab" class="tab-content hidden">
+            <div class="card">
+                <h3><iconify-icon icon="mdi:download"></iconify-icon> Export Data</h3>
+                <p style="color: var(--text-secondary); font-size:13px; margin-bottom:14px;">
+                    Download all points transaction data in Excel or PDF format.
+                </p>
+                <div class="filter-row">
+                    <input type="date" id="exportStartDate" placeholder="Start date">
+                    <input type="date" id="exportEndDate" placeholder="End date">
+                    <select id="exportHouseFilter">
+                        <option value="">All Houses</option>
+                        <option value="JJT">JJT</option>
+                        <option value="Jensud">Jensud</option>
+                        <option value="Munir">Munir</option>
+                    </select>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-outline" onclick="exportData('excel')">
+                        <iconify-icon icon="mdi:file-excel"></iconify-icon> Excel (.xlsx)
+                    </button>
+                    <button class="btn btn-outline" onclick="exportData('pdf')">
+                        <iconify-icon icon="mdi:file-pdf-box"></iconify-icon> PDF
+                    </button>
+                </div>
+                <div class="action-buttons" style="margin-top:8px;">
+                    <button class="btn btn-outline" onclick="exportData('csv')">
+                        <iconify-icon icon="mdi:file-document"></iconify-icon> CSV
+                    </button>
+                    <button class="btn btn-outline" onclick="window.print()">
+                        <iconify-icon icon="mdi:printer"></iconify-icon> Print
+                    </button>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <div id="toast" class="toast"></div>
-
-    <script src="config.js"></script>
+    <script src="shared.js"></script>
     <script src="app.js"></script>
     <script src="reports.js"></script>
-  </body>
+</body>
 </html>

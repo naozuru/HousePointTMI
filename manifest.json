@@ -1,17 +1,44 @@
 {
-  "name": "Tunas Mekar Indonesia",
+  "name": "TMI House Points",
   "short_name": "TMI Points",
-  "description": "Sistem Poin Siswa Digital",
-  "start_url": "/",
+  "description": "Digital Student Points System - Tunas Mekar Indonesia",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#004632",
   "theme_color": "#004632",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2909/2909875.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/128/2909/2909875.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Teacher Dashboard",
+      "short_name": "Dashboard",
+      "description": "Login as a teacher",
+      "url": "./index.html",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/128/2909/2909875.png", "sizes": "128x128" }]
+    },
+    {
+      "name": "Parent Portal",
+      "short_name": "Parents",
+      "description": "View student points",
+      "url": "./parent.html",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/128/2909/2909875.png", "sizes": "128x128" }]
     }
   ]
 }
